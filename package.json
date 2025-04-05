@@ -16,5 +16,13 @@
   "bugs": {
     "url": "https://github.com/adiSuper94/orcid-ts-client/issues"
   },
-  "homepage": "https://github.com/adiSuper94/orcid-ts-client#readme"
+  "homepage": "https://github.com/adiSuper94/orcid-ts-client#readme",
+  "devDependencies": {
+    "@types/node": "^22.14.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "tar": "^7.4.3"
+  }
 }
