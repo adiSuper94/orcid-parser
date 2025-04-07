@@ -92,5 +92,6 @@ func main() {
 	var wg sync.WaitGroup
 	defer wg.Wait()
 	wg.Add(1)
+	InitCache()
 	go tarLs("/home/adisuper/Downloads/ORCID_2024_10_activities_0.tar.gz", &wg)
 }
