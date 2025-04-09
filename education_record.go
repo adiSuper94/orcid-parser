@@ -12,15 +12,15 @@ type Education struct {
 	DisplayIndex int    `xml:"display-index,attr"`
 	Path         string `xml:"path,attr"`
 
-	CreatedDate      string       `xml:"created-date"`
-	LastModifiedDate string       `xml:"last-modified-date"`
-	URL              string       `xml:"url,omitempty"`
-	Source           Source       `xml:"source"`
-	DepartmentName   string       `xml:"department-name"`
-	RoleTitle        string       `xml:"role-title"`
-	StartDate        Date         `xml:"start-date"`
-	EndDate          Date         `xml:"end-date"`
-	Organization     Organization `xml:"organization"`
+	CreatedDate      string        `xml:"created-date"`
+	LastModifiedDate string        `xml:"last-modified-date"`
+	URL              string        `xml:"url,omitempty"`
+	Source           *Source       `xml:"source"`
+	DepartmentName   string        `xml:"department-name"`
+	RoleTitle        string        `xml:"role-title"`
+	StartDate        Date          `xml:"start-date"`
+	EndDate          Date          `xml:"end-date"`
+	Organization     *Organization `xml:"organization"`
 }
 
 func ParseEducationRecord(header *tar.Header, record *tar.Reader) Education {

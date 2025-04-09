@@ -80,7 +80,9 @@ func buildIndex(header *tar.Header, record *tar.Reader, ctx context.Context) {
 			}
 		case "educations":
 			educationXML := ParseEducationRecord(header, record)
-			UpsertOrg(educationXML.Organization, ctx)
+			if educationXML.Organization != nil {
+				UpsertOrg(*educationXML.Organization, ctx)
+			}
 		case "membership", "peer-reviews", "works", "distinctions", "fundings", "qualifications", "services", "invited-positions", "research-resources":
 		default:
 			fmt.Println("unknow section:", section, "orcid:", orcidId, "file name:", fileName)

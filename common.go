@@ -1,10 +1,54 @@
 package main
 
 import (
+	"encoding/xml"
 	"errors"
 	"strconv"
 	"time"
 )
+
+type OrcidIdentifier struct {
+	XMLName xml.Name `xml:"orcid-identifier"`
+	URI     string   `xml:"uri"`
+	Path    string   `xml:"path"`
+	Host    string   `xml:"host"`
+}
+
+type Person struct {
+	XMLName          xml.Name    `xml:"person"`
+	Path             string      `xml:"path,attr"`
+	LastModifiedDate string      `xml:"last-modified-date,omitempty"`
+	Name             *PersonName `xml:"name,omitempty"`
+	Emails           *Emails     `xml:"emails,omitempty"`
+}
+
+type Emails struct {
+	XMLName          xml.Name `xml:"emails"`
+	Path             string   `xml:"path,attr"`
+	LastModifiedDate string   `xml:"last-modified-date,omitempty"`
+	Email            []Email  `xml:"email,omitempty"`
+}
+
+type Email struct {
+	XMLName          xml.Name `xml:"email"`
+	Visibility       string   `xml:"visibility,attr"`
+	Verified         bool     `xml:"verified,attr"`
+	Primary          bool     `xml:"primary,attr"`
+	CreatedDate      string   `xml:"created-date"`
+	LastModifiedDate string   `xml:"last-modified-date"`
+	Source           Source   `xml:"source"`
+	Email            string   `xml:"email"`
+}
+
+type PersonName struct {
+	XMLName          xml.Name `xml:"name"`
+	Visibility       string   `xml:"visibility,attr"`
+	Path             string   `xml:"path,attr"`
+	CreatedDate      string   `xml:"created-date"`
+	LastModifiedDate string   `xml:"last-modified-date"`
+	GivenNames       string   `xml:"given-names"`
+	FamilyName       string   `xml:"family-name"`
+}
 
 type Source struct {
 	SourceOrcid struct {
