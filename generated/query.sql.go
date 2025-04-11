@@ -147,27 +147,6 @@ func (q *Queries) InsertEmpoymentRecord(ctx context.Context, arg InsertEmpoyment
 	return i, err
 }
 
-const insertOrcidId = `-- name: InsertOrcidId :one
-insert into researcher(orcid_id, dir_id) values(?1, ?2) returning orcid_id, given_name, family_name, dir_id
-`
-
-type InsertOrcidIdParams struct {
-	OrcidID string
-	DirID   int64
-}
-
-func (q *Queries) InsertOrcidId(ctx context.Context, arg InsertOrcidIdParams) (Researcher, error) {
-	row := q.db.QueryRowContext(ctx, insertOrcidId, arg.OrcidID, arg.DirID)
-	var i Researcher
-	err := row.Scan(
-		&i.OrcidID,
-		&i.GivenName,
-		&i.FamilyName,
-		&i.DirID,
-	)
-	return i, err
-}
-
 const insertOrg = `-- name: InsertOrg :one
 insert into org(grid_id, ror_id, fundref_id, lei_id, city, region, country, name)
   values(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8) returning id, grid_id, ror_id, fundref_id, lei_id, city, region, country, name
@@ -207,6 +186,23 @@ func (q *Queries) InsertOrg(ctx context.Context, arg InsertOrgParams) (Org, erro
 		&i.Country,
 		&i.Name,
 	)
+	return i, err
+}
+
+const insertPerson = `-- name: InsertPerson :one
+insert into person(orcid_id, given_name, family_name) values(?1, ?2, ?3) returning orcid_id, given_name, family_name
+`
+
+type InsertPersonParams struct {
+	OrcidID    string
+	GivenName  sql.NullString
+	FamilyName sql.NullString
+}
+
+func (q *Queries) InsertPerson(ctx context.Context, arg InsertPersonParams) (Person, error) {
+	row := q.db.QueryRowContext(ctx, insertPerson, arg.OrcidID, arg.GivenName, arg.FamilyName)
+	var i Person
+	err := row.Scan(&i.OrcidID, &i.GivenName, &i.FamilyName)
 	return i, err
 }
 

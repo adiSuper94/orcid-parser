@@ -1,10 +1,14 @@
 package main
 
 import (
+	"context"
+	"database/sql"
 	"encoding/xml"
 	"errors"
 	"strconv"
 	"time"
+
+	queries "github.com/adisuper94/orcidparser/generated"
 )
 
 type OrcidIdentifier struct {
@@ -99,4 +103,21 @@ func (d Date) ToMillis() (int64, error) {
 	// Construct time
 	t := time.Date(year, month, day, 0, 0, 0, 0, time.UTC)
 	return t.UnixMilli(), nil
+}
+
+func (p Person) Upsert(orcidId string, ctx context.Context) (queries.Person, error) {
+	q := GetQueries()
+	givenName := sql.NullString{String: "", Valid: false}
+	familyName := sql.NullString{String: "", Valid: false}
+	if p.Name == nil {
+		return queries.Person{}, errors.New("person name is nil")
+	}
+	if p.Name.GivenNames != "" {
+		givenName = sql.NullString{String: p.Name.GivenNames, Valid: true}
+	}
+	if p.Name.FamilyName != "" {
+		familyName = sql.NullString{String: p.Name.FamilyName, Valid: true}
+	}
+	insertPersonParams := queries.InsertPersonParams{OrcidID: orcidId, GivenName: givenName, FamilyName: familyName}
+	return q.InsertPerson(ctx, insertPersonParams)
 }

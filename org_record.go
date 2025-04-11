@@ -68,25 +68,25 @@ func cacheOut(src string, id string) (*queries.Org, bool) {
 	return nil, false
 }
 
-func UpsertOrg(record Organization, ctx context.Context) (queries.Org, error) {
+func (org Organization) Upsert(ctx context.Context) (queries.Org, error) {
 	q := GetQueries()
-	orgName := sql.NullString{String: record.Name, Valid: true}
-	orgCountry := sql.NullString{String: record.Address.Country, Valid: true}
-	orgCity := sql.NullString{String: record.Address.City, Valid: true}
+	orgName := sql.NullString{String: org.Name, Valid: true}
+	orgCountry := sql.NullString{String: org.Address.Country, Valid: true}
+	orgCity := sql.NullString{String: org.Address.City, Valid: true}
 	var orgRegion = sql.NullString{String: "", Valid: false}
-	if record.Address.Region != "" {
-		orgRegion.String = record.Address.Region
+	if org.Address.Region != "" {
+		orgRegion.String = org.Address.Region
 		orgRegion.Valid = true
 	}
 	params := queries.GetOrgParams{Name: orgName, Country: orgCountry}
 	insertParams := queries.InsertOrgParams{Name: orgName, Country: orgCountry, Region: orgRegion, City: orgCity}
 	rid := ""
-	if record.DisambiguatedOrganization != nil {
-		src := record.DisambiguatedOrganization.Source
-		id := record.DisambiguatedOrganization.Identifier
-		org, ok := cacheOut(src, id)
+	if org.DisambiguatedOrganization != nil {
+		src := org.DisambiguatedOrganization.Source
+		id := org.DisambiguatedOrganization.Identifier
+		cachedOrg, ok := cacheOut(src, id)
 		if ok {
-			return *org, nil
+			return *cachedOrg, nil
 		}
 		switch src {
 		case "RINGGOLD":
@@ -107,25 +107,25 @@ func UpsertOrg(record Organization, ctx context.Context) (queries.Org, error) {
 			fmt.Println("Found a new type of org type: ", src, "id : ", id)
 		}
 	}
-	org, err := q.GetOrg(ctx, params)
+	orgRow, err := q.GetOrg(ctx, params)
 	switch err {
 	case sql.ErrNoRows:
-		org, err = q.InsertOrg(ctx, insertParams)
+		orgRow, err = q.InsertOrg(ctx, insertParams)
 		if err == nil {
-			updateCache(org, rid)
+			updateCache(orgRow, rid)
 		}
 	case nil:
-		if record.DisambiguatedOrganization != nil {
+		if org.DisambiguatedOrganization != nil {
 			var rid = ""
 			updateParams := queries.UpdateOrgIdsParams{
-				ID:        org.ID,
-				GridID:    org.GridID,
-				RorID:     org.RorID,
-				FundrefID: org.FundrefID,
-				LeiID:     org.LeiID,
+				ID:        orgRow.ID,
+				GridID:    orgRow.GridID,
+				RorID:     orgRow.RorID,
+				FundrefID: orgRow.FundrefID,
+				LeiID:     orgRow.LeiID,
 			}
-			src := record.DisambiguatedOrganization.Source
-			id := record.DisambiguatedOrganization.Identifier
+			src := org.DisambiguatedOrganization.Source
+			id := org.DisambiguatedOrganization.Identifier
 			switch src {
 			case "RINGGOLD":
 				rid = id
@@ -139,15 +139,22 @@ func UpsertOrg(record Organization, ctx context.Context) (queries.Org, error) {
 				updateParams.LeiID = sql.NullString{String: id, Valid: true}
 			default:
 				log.Println("UpsertOrg: no clue what got updated")
-				return org, err
+				return orgRow, err
 			}
 			if rid == "" {
-				org, err = q.UpdateOrgIds(ctx, updateParams)
+				orgRow, err = q.UpdateOrgIds(ctx, updateParams)
 			}
 			if err == nil {
-				updateCache(org, rid)
+				updateCache(orgRow, rid)
 			}
 		}
 	}
-	return org, err
+	return orgRow, err
+}
+func (o Organization) String() string {
+	doStr := "nil"
+	if o.DisambiguatedOrganization != nil {
+		doStr = fmt.Sprintf("{Identifier: %s, Source: %s}", o.DisambiguatedOrganization.Identifier, o.DisambiguatedOrganization.Source)
+	}
+	return fmt.Sprintf("{Name: %s, Address: {City: %s, Region: %s, Country: %s}, DisambiguatedOrganization: %s", o.Name, o.Address.City, o.Address.Region, o.Address.Country, doStr)
 }

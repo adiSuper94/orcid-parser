@@ -42,7 +42,7 @@ func tarLs(filePath string, wg *sync.WaitGroup) {
 		if err != nil {
 			break // EOF
 		}
-		buildIndex(header, tr, ctx)
+		buildSummaryIndex(header, tr, ctx)
 	}
 }
 
@@ -74,14 +74,14 @@ func buildIndex(header *tar.Header, record *tar.Reader, ctx context.Context) {
 		switch section {
 		case "employments":
 			employmentXML := ParseEmploymentRecord(header, record)
-			employment, err := UpsertEmploymentRecord(employmentXML, ctx)
+			employment, err := employmentXML.Upsert(ctx)
 			if err != nil {
 				log.Fatalln("Error while upserting employment", employmentXML, "Error: ", err, "inserted employement: ", employment)
 			}
 		case "educations":
 			educationXML := ParseEducationRecord(header, record)
 			if educationXML.Organization != nil {
-				UpsertOrg(*educationXML.Organization, ctx)
+				educationXML.Organization.Upsert(ctx)
 			}
 		case "membership", "peer-reviews", "works", "distinctions", "fundings", "qualifications", "services", "invited-positions", "research-resources":
 		default:
@@ -90,10 +90,23 @@ func buildIndex(header *tar.Header, record *tar.Reader, ctx context.Context) {
 	}
 }
 
+func buildSummaryIndex(header *tar.Header, record *tar.Reader, ctx context.Context) {
+	if header.Typeflag != tar.TypeReg { // only regular files
+		return
+	}
+	steps := strings.Split(header.Name, "/")
+	if len(steps) != 3 {
+		log.Fatalln("Error: ", header.Name)
+		return
+	}
+	summary := ParseSummaryRecord(header, record)
+	summary.Upsert(ctx)
+}
+
 func main() {
 	var wg sync.WaitGroup
 	defer wg.Wait()
 	wg.Add(1)
 	InitCache()
-	go tarLs("/home/adisuper/Downloads/ORCID_2024_10_activities_0.tar.gz", &wg)
+	go tarLs("/Users/aditya.subramani/Downloads/ORCID_2024_10_summaries.tar.gz", &wg)
 }

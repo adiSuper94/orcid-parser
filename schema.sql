@@ -11,12 +11,10 @@ create table if not exists dir(
   unique(archive_file_id, name)
 );
 
-create table if not exists researcher(
+create table if not exists person(
   orcid_id text primary key,
   given_name text,
-  family_name text,
-  dir_id integer not null,
-  foreign key(dir_id) references dir(id)
+  family_name text
 );
 
 create table if not exists org(
@@ -40,6 +38,6 @@ create table if not exists employment(
   role_title text,
   start_date integer,
   end_date integer,
-  foreign key(orcid_id) references researcher(orcid_id),
+  foreign key(orcid_id) references person(orcid_id),
   foreign key(org_id) references org(id)
 );

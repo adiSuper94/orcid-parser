@@ -41,9 +41,8 @@ type Org struct {
 	Name      sql.NullString
 }
 
-type Researcher struct {
+type Person struct {
 	OrcidID    string
 	GivenName  sql.NullString
 	FamilyName sql.NullString
-	DirID      int64
 }

@@ -4,9 +4,6 @@ insert into archive_files(name) values(@name) returning *;
 -- name: InsertDir :one
 insert into dir(archive_file_id, name) values(@archive_file_id, @name) returning *;
 
--- name: InsertOrcidId :one
-insert into researcher(orcid_id, dir_id) values(@orcid_id, @dir_id) returning *;
-
 -- name: InsertEmpoymentRecord :one
 insert into employment(id, orcid_id, org_id, dept_name, role_title, start_date, end_date)
   values(@id, @orcid_id, @org_id, @dept_name, @role_title, @start_date, @end_date) returning *;
@@ -31,3 +28,6 @@ select * from employment where id == @emp_id;
 
 -- name: UpdateOrgIds :one
 update org set grid_id = @grid_id, ror_id= @ror_id, fundref_id = @fundref_id, lei_id = @lei_id where id == @id returning *;
+
+-- name: InsertPerson :one
+insert into person(orcid_id, given_name, family_name) values(@orcid_id, @given_name, @family_name) returning *;

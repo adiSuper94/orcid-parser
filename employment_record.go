@@ -11,11 +11,10 @@ import (
 )
 
 type Employment struct {
-	XMLName      xml.Name `xml:"employment"`
-	PutCode      int64    `xml:"put-code,attr"`
-	Path         string   `xml:"path,attr"`
-	DisplayIndex string   `xml:"display-index,attr"`
-	Visibility   string   `xml:"visibility,attr"`
+	PutCode      int64  `xml:"put-code,attr"`
+	Path         string `xml:"path,attr"`
+	DisplayIndex string `xml:"display-index,attr"`
+	Visibility   string `xml:"visibility,attr"`
 
 	CreatedDate      string       `xml:"created-date"`
 	LastModifiedDate string       `xml:"last-modified-date"`
@@ -38,8 +37,8 @@ func ParseEmploymentRecord(header *tar.Header, record *tar.Reader) Employment {
 	return empRecord
 }
 
-func UpsertEmploymentRecord(record Employment, ctx context.Context) (*queries.Employment, error) {
-	org, err := UpsertOrg(record.Organization, ctx)
+func (record Employment) Upsert(ctx context.Context) (*queries.Employment, error) {
+	org, err := record.Organization.Upsert(ctx)
 	if err != nil {
 		log.Fatalln("Error while upserting org from `UpsertEmploymentRecord` err: ", err)
 	}
