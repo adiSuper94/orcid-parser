@@ -1,43 +1,51 @@
 package main
-
 import (
-	"database/sql"
-	"log"
-	"os"
+	"context"
 	"sync"
 
 	queries "github.com/adisuper94/orcidparser/generated"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 var q *queries.Queries
-var db *sql.DB
+var pool *pgxpool.Pool
 var mutex = &sync.Mutex{}
 
-func InitDB() {
-	mutex.Lock()
-	if db != nil {
-		return
+func getDBConn() *pgxpool.Pool {
+	if pool == nil {
+		mutex.Lock()
+		if pool == nil {
+			pool = createDBConnection(16)
+		}
+		mutex.Unlock()
 	}
-	db, err := sql.Open("sqlite", "./orcid.db")
-	if err != nil {
-		log.Fatalln(err)
-	}
-	sqlBytes, err := os.ReadFile("./schema.sql")
-	if err != nil {
-		log.Fatalln(err)
-	}
-	sqlString := string(sqlBytes)
-	_, err = db.Exec(sqlString)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	q = queries.New(db)
-	mutex.Unlock()
+
+	return pool
 }
 
 func GetQueries() *queries.Queries {
+	pool := getDBConn()
 	if q == nil {
-		InitDB()
+		mutex.Lock()
+		if q == nil {
+			q = queries.New(pool)
+		}
+		mutex.Unlock()
 	}
+
 	return q
+}
+
+func createDBConnection(connectionCount int32) *pgxpool.Pool {
+	pgxConfig, err := pgxpool.ParseConfig("postgres://adisuper:ilovepostgres@localhost:5432/orcid?sslmode=disable")
+	if err != nil {
+		panic(err)
+	}
+	pgxConfig.MaxConns = connectionCount
+
+	conn, err := pgxpool.NewWithConfig(context.Background(), pgxConfig)
+	if err != nil {
+		panic(err)
+	}
+	return conn
 }

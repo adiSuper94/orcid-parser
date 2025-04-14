@@ -4,18 +4,19 @@ import (
 	"archive/tar"
 	"compress/gzip"
 	"context"
-	"database/sql"
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 
 	"github.com/adisuper94/orcidparser/generated"
+	"github.com/jackc/pgx/v5/pgtype"
 	_ "modernc.org/sqlite"
 )
 
-func tarLs(filePath string, wg *sync.WaitGroup) {
+func tarLs(filePath string, dir string, wg *sync.WaitGroup) {
 	defer wg.Done()
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -42,11 +43,11 @@ func tarLs(filePath string, wg *sync.WaitGroup) {
 		if err != nil {
 			break // EOF
 		}
-		buildSummaryIndex(header, tr, ctx)
+		buildSummaryIndex(header, tr, dir, ctx)
 	}
 }
 
-func buildIndex(header *tar.Header, record *tar.Reader, ctx context.Context) {
+func _buildIndex(header *tar.Header, record *tar.Reader, ctx context.Context) {
 	steps := strings.Split(header.Name, "/")
 	if len(steps) < 2 {
 		return
@@ -63,7 +64,7 @@ func buildIndex(header *tar.Header, record *tar.Reader, ctx context.Context) {
 			log.Fatalln("ERR: archive file not found", err)
 		}
 		log.Println("Started archive file:", archiveFileName, "dir: ", dirName)
-		q.InsertDir(ctx, queries.InsertDirParams{Name: sql.NullString{String: dirName, Valid: true}, ArchiveFileID: archiveFile.ID})
+		q.InsertDir(ctx, queries.InsertDirParams{Name: pgtype.Text{String: dirName, Valid: true}, ArchiveFileID: archiveFile.ID})
 	} else if len(steps) == 5 {
 		if header.Typeflag != tar.TypeReg { // only regular files
 			return
@@ -90,8 +91,9 @@ func buildIndex(header *tar.Header, record *tar.Reader, ctx context.Context) {
 	}
 }
 
-func buildSummaryIndex(header *tar.Header, record *tar.Reader, ctx context.Context) {
+func buildSummaryIndex(header *tar.Header, record *tar.Reader, dir string, ctx context.Context) {
 	if header.Typeflag != tar.TypeReg { // only regular files
+		fmt.Println(header.Name)
 		return
 	}
 	steps := strings.Split(header.Name, "/")
@@ -99,14 +101,22 @@ func buildSummaryIndex(header *tar.Header, record *tar.Reader, ctx context.Conte
 		log.Fatalln("Error: ", header.Name)
 		return
 	}
+	dirName := steps[1]
+	if dir[0] != dirName[2] {
+		return
+	}
+	fmt.Println("ho")
 	summary := ParseSummaryRecord(header, record)
 	summary.Upsert(ctx)
 }
 
 func main() {
 	var wg sync.WaitGroup
+
 	defer wg.Wait()
-	wg.Add(1)
 	InitCache()
-	go tarLs("/Users/aditya.subramani/Downloads/ORCID_2024_10_summaries.tar.gz", &wg)
+	for i := range 10 {
+		go tarLs("/home/adisuper/Downloads/ORCID_2024_10_summaries.tar.gz", strconv.Itoa(i), &wg)
+	}
+	wg.Add(1)
 }

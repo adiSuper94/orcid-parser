@@ -2,6 +2,7 @@ package main
 
 import (
 	"archive/tar"
+	"context"
 	"encoding/xml"
 	"log"
 )
@@ -31,4 +32,11 @@ func ParseEducationRecord(header *tar.Header, record *tar.Reader) Education {
 		log.Fatalln("Error Decoding", header.Name, ". Err: ", err)
 	}
 	return eduRecord
+}
+
+func (edu Education) Upsert(ctx context.Context) {
+	if edu.Organization == nil {
+		return
+	}
+	edu.Organization.Upsert(ctx)
 }

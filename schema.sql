@@ -36,8 +36,8 @@ create table if not exists employment(
   orcid_id text not null,
   dept_name text,
   role_title text,
-  start_date integer,
-  end_date integer,
+  start_date timestamptz,
+  end_date timestamptz,
   foreign key(orcid_id) references person(orcid_id),
   foreign key(org_id) references org(id)
 );

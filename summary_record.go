@@ -52,11 +52,9 @@ func ParseSummaryRecord(header *tar.Header, record *tar.Reader) Record {
 	decoder := xml.NewDecoder(record)
 	var summaryRecord Record
 	err := decoder.Decode(&summaryRecord)
-	fmt.Println(header.Name, summaryRecord)
 	if err != nil {
 		log.Fatalln("Error Decoding", header.Name, ". Err: ", err)
 	}
-	fmt.Println(summaryRecord)
 	return summaryRecord
 }
 
@@ -107,7 +105,7 @@ func (a ActivitiesSummary) Upsert(ctx context.Context) {
 
 func (a AffiliationGroup) Upsert(ctx context.Context) {
 	if a.EducationSummary != nil {
-
+		a.EducationSummary.Upsert(ctx)
 	}
 	if a.EmploymentSummary != nil {
 		a.EmploymentSummary.Upsert(ctx)

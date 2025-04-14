@@ -1,9 +1,18 @@
 version: "2"
 sql:
-  - engine: "sqlite"
+  - engine: "postgresql"
     queries: "query.sql"
     schema: "schema.sql"
     gen:
       go:
         package: "queries"
         out: "generated"
+        sql_package: "pgx/v5"
+        overrides:
+        - db_type: "timestamptz"
+          nullable: true
+          go_type:
+            type: "time.Time"
+            pointer: true
+
+

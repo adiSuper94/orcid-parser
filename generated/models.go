@@ -5,44 +5,46 @@
 package queries
 
 import (
-	"database/sql"
+	"time"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type ArchiveFile struct {
-	ID   int64
+	ID   int32
 	Name string
 }
 
 type Dir struct {
-	ID            int64
-	ArchiveFileID int64
-	Name          sql.NullString
+	ID            int32
+	ArchiveFileID int32
+	Name          pgtype.Text
 }
 
 type Employment struct {
-	ID        int64
-	OrgID     int64
+	ID        int32
+	OrgID     int32
 	OrcidID   string
-	DeptName  sql.NullString
-	RoleTitle sql.NullString
-	StartDate sql.NullInt64
-	EndDate   sql.NullInt64
+	DeptName  pgtype.Text
+	RoleTitle pgtype.Text
+	StartDate *time.Time
+	EndDate   *time.Time
 }
 
 type Org struct {
-	ID        int64
-	GridID    sql.NullString
-	RorID     sql.NullString
-	FundrefID sql.NullString
-	LeiID     sql.NullString
-	City      sql.NullString
-	Region    sql.NullString
-	Country   sql.NullString
-	Name      sql.NullString
+	ID        int32
+	GridID    pgtype.Text
+	RorID     pgtype.Text
+	FundrefID pgtype.Text
+	LeiID     pgtype.Text
+	City      pgtype.Text
+	Region    pgtype.Text
+	Country   pgtype.Text
+	Name      pgtype.Text
 }
 
 type Person struct {
 	OrcidID    string
-	GivenName  sql.NullString
-	FamilyName sql.NullString
+	GivenName  pgtype.Text
+	FamilyName pgtype.Text
 }
