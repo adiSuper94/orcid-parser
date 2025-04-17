@@ -1,4 +1,5 @@
 package main
+
 import (
 	"context"
 	"sync"
@@ -15,7 +16,7 @@ func getDBConn() *pgxpool.Pool {
 	if pool == nil {
 		mutex.Lock()
 		if pool == nil {
-			pool = createDBConnection(16)
+			pool = createDBConnection(32)
 		}
 		mutex.Unlock()
 	}
@@ -32,7 +33,6 @@ func GetQueries() *queries.Queries {
 		}
 		mutex.Unlock()
 	}
-
 	return q
 }
 

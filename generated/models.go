@@ -11,19 +11,19 @@ import (
 )
 
 type ArchiveFile struct {
-	ID   int32
+	ID   int64
 	Name string
 }
 
 type Dir struct {
-	ID            int32
-	ArchiveFileID int32
+	ID            int64
+	ArchiveFileID int64
 	Name          pgtype.Text
 }
 
 type Employment struct {
-	ID        int32
-	OrgID     int32
+	ID        int64
+	OrgID     int64
 	OrcidID   string
 	DeptName  pgtype.Text
 	RoleTitle pgtype.Text
@@ -32,7 +32,7 @@ type Employment struct {
 }
 
 type Org struct {
-	ID        int32
+	ID        int64
 	GridID    pgtype.Text
 	RorID     pgtype.Text
 	FundrefID pgtype.Text

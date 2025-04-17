@@ -2,11 +2,13 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"log"
+	"sync"
 
 	queries "github.com/adisuper94/orcidparser/generated"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Organization struct {
@@ -25,6 +27,7 @@ type Organization struct {
 var gridCache map[string]*queries.Org
 var rorCache map[string]*queries.Org
 var ringgoldCache map[string]*queries.Org
+var cacheMutex = &sync.RWMutex{}
 
 func InitCache() {
 	if gridCache == nil {
@@ -39,6 +42,15 @@ func InitCache() {
 }
 
 func updateCache(org queries.Org, rid string) {
+	cacheMutex.Lock()
+	defer cacheMutex.Unlock()
+	if len(gridCache) > 200_000 || len(ringgoldCache) > 200_000 || len(rorCache) > 200_000 {
+		log.Println("flushing cache")
+		gridCache = nil
+		rorCache = nil
+		ringgoldCache = nil
+		InitCache()
+	}
 	if org.GridID.Valid {
 		gridCache[org.GridID.String] = &org
 	}
@@ -51,6 +63,8 @@ func updateCache(org queries.Org, rid string) {
 }
 
 func cacheOut(src string, id string) (*queries.Org, bool) {
+	cacheMutex.RLock()
+	defer cacheMutex.RUnlock()
 	switch src {
 	case "GRID":
 		if gridCache[id] != nil {
@@ -70,10 +84,10 @@ func cacheOut(src string, id string) (*queries.Org, bool) {
 
 func (org Organization) Upsert(ctx context.Context) (queries.Org, error) {
 	q := GetQueries()
-	orgName := sql.NullString{String: org.Name, Valid: true}
-	orgCountry := sql.NullString{String: org.Address.Country, Valid: true}
-	orgCity := sql.NullString{String: org.Address.City, Valid: true}
-	var orgRegion = sql.NullString{String: "", Valid: false}
+	orgName := pgtype.Text{String: org.Name, Valid: true}
+	orgCountry := pgtype.Text{String: org.Address.Country, Valid: true}
+	orgCity := pgtype.Text{String: org.Address.City, Valid: true}
+	var orgRegion = pgtype.Text{String: "", Valid: false}
 	if org.Address.Region != "" {
 		orgRegion.String = org.Address.Region
 		orgRegion.Valid = true
@@ -92,62 +106,72 @@ func (org Organization) Upsert(ctx context.Context) (queries.Org, error) {
 		case "RINGGOLD":
 			rid = id
 		case "GRID":
-			params.GridID = sql.NullString{String: id, Valid: true}
-			insertParams.GridID = sql.NullString{String: id, Valid: true}
+			params.GridID = pgtype.Text{String: id, Valid: true}
+			insertParams.GridID = pgtype.Text{String: id, Valid: true}
 		case "ROR":
-			params.RorID = sql.NullString{String: id, Valid: true}
-			insertParams.RorID = sql.NullString{String: id, Valid: true}
+			params.RorID = pgtype.Text{String: id, Valid: true}
+			insertParams.RorID = pgtype.Text{String: id, Valid: true}
 		case "FUNDREF":
-			params.FundrefID = sql.NullString{String: id, Valid: true}
-			insertParams.FundrefID = sql.NullString{String: id, Valid: true}
+			// params.FundrefID = pgtype.Text{String: id, Valid: true}
+			// insertParams.FundrefID = pgtype.Text{String: id, Valid: true}
 		case "LEI":
-			params.LeiID = sql.NullString{String: id, Valid: true}
-			insertParams.LeiID = sql.NullString{String: id, Valid: true}
+			params.LeiID = pgtype.Text{String: id, Valid: true}
+			insertParams.LeiID = pgtype.Text{String: id, Valid: true}
 		default:
 			fmt.Println("Found a new type of org type: ", src, "id : ", id)
 		}
 	}
 	orgRow, err := q.GetOrg(ctx, params)
 	switch err {
-	case sql.ErrNoRows:
+	case pgx.ErrNoRows:
 		orgRow, err = q.InsertOrg(ctx, insertParams)
 		if err == nil {
 			updateCache(orgRow, rid)
+		} else {
+			log.Fatalln(err, params, orgRow)
 		}
 	case nil:
 		if org.DisambiguatedOrganization != nil {
-			var rid = ""
+			update := true
 			updateParams := queries.UpdateOrgIdsParams{
-				ID:        orgRow.ID,
-				GridID:    orgRow.GridID,
-				RorID:     orgRow.RorID,
-				FundrefID: orgRow.FundrefID,
-				LeiID:     orgRow.LeiID,
+				ID:     orgRow.ID,
+				GridID: orgRow.GridID,
+				RorID:  orgRow.RorID,
+				// FundrefID: orgRow.FundrefID,
+				LeiID: orgRow.LeiID,
 			}
 			src := org.DisambiguatedOrganization.Source
 			id := org.DisambiguatedOrganization.Identifier
 			switch src {
 			case "RINGGOLD":
-				rid = id
+				update = false
 			case "GRID":
-				updateParams.GridID = sql.NullString{String: id, Valid: true}
+				update = orgRow.GridID.String != id
+				updateParams.GridID = pgtype.Text{String: id, Valid: true}
 			case "ROR":
-				updateParams.RorID = sql.NullString{String: id, Valid: true}
+				update = orgRow.RorID.String != id
+				updateParams.RorID = pgtype.Text{String: id, Valid: true}
 			case "FUNDREF":
-				updateParams.FundrefID = sql.NullString{String: id, Valid: true}
+				// 	updateParams.FundrefID = pgtype.Text{String: id, Valid: true}
+				return orgRow, err
 			case "LEI":
-				updateParams.LeiID = sql.NullString{String: id, Valid: true}
+				update = orgRow.LeiID.String != id
+				updateParams.LeiID = pgtype.Text{String: id, Valid: true}
 			default:
 				log.Println("UpsertOrg: no clue what got updated")
 				return orgRow, err
 			}
-			if rid == "" {
+			if update {
 				orgRow, err = q.UpdateOrgIds(ctx, updateParams)
+				if err == nil {
+				} else {
+					log.Fatalln(err, "\norg:", orgRow, "\nparams:", updateParams)
+				}
 			}
-			if err == nil {
-				updateCache(orgRow, rid)
-			}
+			updateCache(orgRow, rid)
 		}
+	default:
+		log.Fatalln("wtf: unknown err: ", err)
 	}
 	return orgRow, err
 }

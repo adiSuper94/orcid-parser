@@ -13,7 +13,7 @@ import (
 )
 
 const getArchiveFile = `-- name: GetArchiveFile :one
-select id, name from archive_files where name == $1 limit 1
+select id, name from archive_files where name = $1 limit 1
 `
 
 func (q *Queries) GetArchiveFile(ctx context.Context, name string) (ArchiveFile, error) {
@@ -24,10 +24,10 @@ func (q *Queries) GetArchiveFile(ctx context.Context, name string) (ArchiveFile,
 }
 
 const getEmployment = `-- name: GetEmployment :one
-select id, org_id, orcid_id, dept_name, role_title, start_date, end_date from employment where id == $1
+select id, org_id, orcid_id, dept_name, role_title, start_date, end_date from employment where id = $1
 `
 
-func (q *Queries) GetEmployment(ctx context.Context, empID int32) (Employment, error) {
+func (q *Queries) GetEmployment(ctx context.Context, empID int64) (Employment, error) {
 	row := q.db.QueryRow(ctx, getEmployment, empID)
 	var i Employment
 	err := row.Scan(
@@ -44,27 +44,25 @@ func (q *Queries) GetEmployment(ctx context.Context, empID int32) (Employment, e
 
 const getOrg = `-- name: GetOrg :one
 select id, grid_id, ror_id, fundref_id, lei_id, city, region, country, name from org where
-  (grid_id is not null and grid_id == $1) or
-  (ror_id is not null and ror_id == $2) or
-  (fundref_id is not null and fundref_id == $3) or
-  (lei_id is not null and lei_id == $4) or
-  (name is not null and country is not null and name == $5 and country == $6)
+  (grid_id is not null and grid_id = $1) or
+  (ror_id is not null and ror_id = $2) or
+  -- (fundref_id is not null and fundref_id = @fundref_id) or
+  (lei_id is not null and lei_id = $3) or
+  (name is not null and country is not null and name = $4 and country = $5)
 `
 
 type GetOrgParams struct {
-	GridID    pgtype.Text
-	RorID     pgtype.Text
-	FundrefID pgtype.Text
-	LeiID     pgtype.Text
-	Name      pgtype.Text
-	Country   pgtype.Text
+	GridID  pgtype.Text
+	RorID   pgtype.Text
+	LeiID   pgtype.Text
+	Name    pgtype.Text
+	Country pgtype.Text
 }
 
 func (q *Queries) GetOrg(ctx context.Context, arg GetOrgParams) (Org, error) {
 	row := q.db.QueryRow(ctx, getOrg,
 		arg.GridID,
 		arg.RorID,
-		arg.FundrefID,
 		arg.LeiID,
 		arg.Name,
 		arg.Country,
@@ -100,7 +98,7 @@ insert into dir(archive_file_id, name) values($1, $2) returning id, archive_file
 `
 
 type InsertDirParams struct {
-	ArchiveFileID int32
+	ArchiveFileID int64
 	Name          pgtype.Text
 }
 
@@ -117,9 +115,9 @@ insert into employment(id, orcid_id, org_id, dept_name, role_title, start_date, 
 `
 
 type InsertEmpoymentRecordParams struct {
-	ID        int32
+	ID        int64
 	OrcidID   string
-	OrgID     int32
+	OrgID     int64
 	DeptName  pgtype.Text
 	RoleTitle pgtype.Text
 	StartDate *time.Time
@@ -150,26 +148,24 @@ func (q *Queries) InsertEmpoymentRecord(ctx context.Context, arg InsertEmpoyment
 }
 
 const insertOrg = `-- name: InsertOrg :one
-insert into org(grid_id, ror_id, fundref_id, lei_id, city, region, country, name)
-  values($1, $2, $3, $4, $5, $6, $7, $8) returning id, grid_id, ror_id, fundref_id, lei_id, city, region, country, name
+insert into org(grid_id, ror_id, lei_id, city, region, country, name)
+  values($1, $2, $3, $4, $5, $6, $7) returning id, grid_id, ror_id, fundref_id, lei_id, city, region, country, name
 `
 
 type InsertOrgParams struct {
-	GridID    pgtype.Text
-	RorID     pgtype.Text
-	FundrefID pgtype.Text
-	LeiID     pgtype.Text
-	City      pgtype.Text
-	Region    pgtype.Text
-	Country   pgtype.Text
-	Name      pgtype.Text
+	GridID  pgtype.Text
+	RorID   pgtype.Text
+	LeiID   pgtype.Text
+	City    pgtype.Text
+	Region  pgtype.Text
+	Country pgtype.Text
+	Name    pgtype.Text
 }
 
 func (q *Queries) InsertOrg(ctx context.Context, arg InsertOrgParams) (Org, error) {
 	row := q.db.QueryRow(ctx, insertOrg,
 		arg.GridID,
 		arg.RorID,
-		arg.FundrefID,
 		arg.LeiID,
 		arg.City,
 		arg.Region,
@@ -209,22 +205,20 @@ func (q *Queries) InsertPerson(ctx context.Context, arg InsertPersonParams) (Per
 }
 
 const updateOrgIds = `-- name: UpdateOrgIds :one
-update org set grid_id = $1, ror_id= $2, fundref_id = $3, lei_id = $4 where id == $5 returning id, grid_id, ror_id, fundref_id, lei_id, city, region, country, name
+update org set grid_id = $1, ror_id = $2, lei_id = $3 where id = $4 returning id, grid_id, ror_id, fundref_id, lei_id, city, region, country, name
 `
 
 type UpdateOrgIdsParams struct {
-	GridID    pgtype.Text
-	RorID     pgtype.Text
-	FundrefID pgtype.Text
-	LeiID     pgtype.Text
-	ID        int32
+	GridID pgtype.Text
+	RorID  pgtype.Text
+	LeiID  pgtype.Text
+	ID     int64
 }
 
 func (q *Queries) UpdateOrgIds(ctx context.Context, arg UpdateOrgIdsParams) (Org, error) {
 	row := q.db.QueryRow(ctx, updateOrgIds,
 		arg.GridID,
 		arg.RorID,
-		arg.FundrefID,
 		arg.LeiID,
 		arg.ID,
 	)

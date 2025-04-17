@@ -10,13 +10,13 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/adisuper94/orcidparser/generated"
 	"github.com/jackc/pgx/v5/pgtype"
-	_ "modernc.org/sqlite"
 )
 
-func tarLs(filePath string, dir string, wg *sync.WaitGroup) {
+func tarLs(filePath string, dir int, wg *sync.WaitGroup) {
 	defer wg.Done()
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -26,13 +26,13 @@ func tarLs(filePath string, dir string, wg *sync.WaitGroup) {
 
 	gzr, err := gzip.NewReader(file)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalln(err)
 	}
 	defer gzr.Close()
 
 	ctx := context.Background()
 	if err != nil {
-		log.Println(err)
+		log.Fatalln(err)
 	}
 	if err != nil {
 		log.Fatalln(err)
@@ -91,32 +91,44 @@ func _buildIndex(header *tar.Header, record *tar.Reader, ctx context.Context) {
 	}
 }
 
-func buildSummaryIndex(header *tar.Header, record *tar.Reader, dir string, ctx context.Context) {
-	if header.Typeflag != tar.TypeReg { // only regular files
-		fmt.Println(header.Name)
-		return
-	}
+func buildSummaryIndex(header *tar.Header, record *tar.Reader, dir int, ctx context.Context) {
 	steps := strings.Split(header.Name, "/")
 	if len(steps) != 3 {
-		log.Fatalln("Error: ", header.Name)
 		return
 	}
 	dirName := steps[1]
-	if dir[0] != dirName[2] {
+	secondChar, err := strconv.Atoi(dirName[1:2])
+	if dir != secondChar && err == nil {
 		return
 	}
-	fmt.Println("ho")
+	firstChar, err := strconv.Atoi(dirName[0:1])
+	if firstChar < 5 && err == nil {
+		return
+	}
+	if header.Typeflag != tar.TypeReg { // only regular files
+		dif := time.Now().Unix() - tyme.Unix()
+		min := dif / 60
+		sec := dif % 60
+		tyme = time.Now()
+		fmt.Println(idx, "\t", min, "min", sec, "sec\t\t", header.Name)
+		idx++
+		return
+	}
 	summary := ParseSummaryRecord(header, record)
 	summary.Upsert(ctx)
 }
 
-func main() {
-	var wg sync.WaitGroup
+var tyme time.Time
+var idx int32
 
+func main() {
+	tyme = time.Now()
+	idx = 1
+	var wg sync.WaitGroup
 	defer wg.Wait()
 	InitCache()
 	for i := range 10 {
-		go tarLs("/home/adisuper/Downloads/ORCID_2024_10_summaries.tar.gz", strconv.Itoa(i), &wg)
+		wg.Add(1)
+		go tarLs("/home/adisuper/Downloads/ORCID_2024_10_summaries.tar.gz", i, &wg)
 	}
-	wg.Add(1)
 }

@@ -2,13 +2,14 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"encoding/xml"
 	"errors"
+	"fmt"
 	"strconv"
 	"time"
 
 	queries "github.com/adisuper94/orcidparser/generated"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type OrcidIdentifier struct {
@@ -105,18 +106,35 @@ func (d Date) ToMillis() (int64, error) {
 	return t.UnixMilli(), nil
 }
 
+func (d Date) ToTime() (*time.Time, error) {
+	if d.Year == nil {
+		return nil, errors.New("year is required")
+	}
+	if d.Month == nil {
+		month := "01"
+		d.Month = &month
+	}
+	dateString := fmt.Sprintf("%s-%s-%s", *d.Year, *d.Month, "01")
+	layout := "2006-01-02"
+	tyme, err := time.Parse(layout, dateString)
+	if err != nil {
+		return nil, err
+	}
+	return &tyme, err
+}
+
 func (p Person) Upsert(orcidId string, ctx context.Context) (queries.Person, error) {
 	q := GetQueries()
-	givenName := sql.NullString{String: "", Valid: false}
-	familyName := sql.NullString{String: "", Valid: false}
+	givenName := pgtype.Text{String: "", Valid: false}
+	familyName := pgtype.Text{String: "", Valid: false}
 	if p.Name == nil {
 		return queries.Person{}, errors.New("person name is nil")
 	}
 	if p.Name.GivenNames != "" {
-		givenName = sql.NullString{String: p.Name.GivenNames, Valid: true}
+		givenName = pgtype.Text{String: p.Name.GivenNames, Valid: true}
 	}
 	if p.Name.FamilyName != "" {
-		familyName = sql.NullString{String: p.Name.FamilyName, Valid: true}
+		familyName = pgtype.Text{String: p.Name.FamilyName, Valid: true}
 	}
 	insertPersonParams := queries.InsertPersonParams{OrcidID: orcidId, GivenName: givenName, FamilyName: familyName}
 	return q.InsertPerson(ctx, insertPersonParams)

@@ -3,11 +3,12 @@ package main
 import (
 	"archive/tar"
 	"context"
-	"database/sql"
 	"encoding/xml"
+	"fmt"
 	"log"
 
 	queries "github.com/adisuper94/orcidparser/generated"
+	"github.com/jackc/pgx/v5"
 )
 
 type Employment struct {
@@ -40,35 +41,34 @@ func ParseEmploymentRecord(header *tar.Header, record *tar.Reader) Employment {
 func (record Employment) Upsert(ctx context.Context) (*queries.Employment, error) {
 	org, err := record.Organization.Upsert(ctx)
 	if err != nil {
-		log.Fatalln("Error while upserting org from `UpsertEmploymentRecord` err: ", err)
+		log.Fatalln("Error while upserting org from `Upsert in employment` record:", record, "err: ", err)
 	}
 	emp, err := q.GetEmployment(ctx, record.PutCode)
 	switch err {
 	case nil:
 		return &emp, err
-	case sql.ErrNoRows:
+	case pgx.ErrNoRows:
 		insertParams := queries.InsertEmpoymentRecordParams{
 			ID: record.PutCode, OrcidID: record.Source.SourceOrcid.Path,
 			OrgID: org.ID, DeptName: emp.DeptName, RoleTitle: emp.RoleTitle}
 		if record.StartDate != nil {
-			milli, err := record.StartDate.ToMillis()
+			tyme, err := record.StartDate.ToTime()
 			if err != nil {
-				log.Println("could not get emp start date for empid:", record.PutCode, "orcidId:", record.Source.SourceOrcid.Path, "err:", err)
-			} else {
-				insertParams.StartDate = sql.NullInt64{Int64: milli, Valid: true}
+				// log.Println("could not get emp start date for empid:", record.PutCode, "orcidId:", record.Source.SourceOrcid.Path, "err:", err)
 			}
+			insertParams.StartDate = tyme
 		}
 		if record.EndDate != nil {
-			milli, err := record.EndDate.ToMillis()
+			tyme, err := record.EndDate.ToTime()
 			if err != nil {
-				// log.Println("could not get emp end date for empid:", record.PutCode, "orcidId:", record.Source.SourceOrcid.Path, "err:", err)
-			} else {
-				insertParams.EndDate = sql.NullInt64{Int64: milli, Valid: true}
+				// log.Println("could not get emp end date for empid:", record.PutCode, "orcidId:", record.Source.SourceOrcid.Path, "err:", err, *record.EndDate)
 			}
+			insertParams.EndDate = tyme
 		}
 		emp, err := q.InsertEmpoymentRecord(ctx, insertParams)
 		return &emp, err
 	default:
+		fmt.Println("wtf!!, emp:", emp, "err: ", err)
 		return nil, err
 	}
 }
